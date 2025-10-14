@@ -1,44 +1,105 @@
-from ultralytics import YOLOE
-from ultralytics.models.yolo.yoloe.val_pe_free import YOLOEPEFreeDetectValidator
-import json
+from typing import List, Tuple, Union, Optional
+import time
+import argparse
 import os
+import cv2
+from yoloe_inference import YOLOEInference
 
-unfused_model = YOLOE("yoloe-v8l.yaml").cuda()
-unfused_model.load("yoloe-v8l-seg.pt")
-unfused_model.eval()
 
-with open('ram_tag_list.txt', 'r') as f:
-    names = [x.strip() for x in f.readlines()]
-vocab = unfused_model.get_vocab(names)
+class YOLOE:
+    def __init__(self, input_images_dir: str = 'input_images'):
+        """
+        Initialize YOLOE pipeline.
+        
+        Args:
+            input_images_dir: Directory where input images are located
+        """
+        self.input_images_dir = input_images_dir
+        self.yoloe_inference = YOLOEInference()
 
-model = YOLOE("yoloe-v8l-seg-pf.pt").cuda()
-model.set_vocab(vocab, names=names)
-model.model.model[-1].is_fused = True
-model.model.model[-1].conf = 0.001
-model.model.model[-1].max_det = 1000
+    def run(self, input_image_names: Union[str, List[str]]) -> Tuple[float, Optional[float]]:
+        """
+        Run inference on one or more images.
+        
+        Args:
+            input_image_names: Single image name or list of image names
+            
+        Returns:
+            Tuple of (total_time, average_time)
+        """
+        if isinstance(input_image_names, str):
+            input_image_names = [input_image_names]
 
-results = model.predict('input_images/xylophone.jpg', save=True, save_dir='output')
+        total_time = 0
+        total_runs = len(input_image_names)
+        
+        for i, image_name in enumerate(input_image_names):
+            start_time = time.time()
+            print(f"\n[YOLOE] Running inference for image {i+1}/{total_runs}: {image_name}...")
 
-# Extraer etiquetas únicas de los objetos detectados
-unique_labels = set()
-for result in results:
-    if result.boxes is not None and len(result.boxes) > 0:
-        # Obtener los índices de las clases detectadas
-        class_ids = result.boxes.cls.cpu().numpy()
-        # Convertir índices a nombres de clases
-        for class_id in class_ids:
-            label = names[int(class_id)]
-            unique_labels.add(label)
+            # Build full path to image
+            image_path = os.path.join(self.input_images_dir, image_name)
+            
+            if not os.path.exists(image_path):
+                print(f"[YOLOE] Error: Image not found at {image_path}")
+                continue
+            
+            # Load image
+            image = cv2.imread(image_path)
+            if image is None:
+                print(f"[YOLOE] Error: Failed to load image {image_path}")
+                continue
+            
+            # Convert BGR to RGB
+            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            
+            # Run inference with image name for unique output folder
+            results = self.yoloe_inference.run(image_rgb, image_name=image_name)
+            
+            print(f"\n[YOLOE] Detected {results['num_detections']} instances")
+            print(f"\n[YOLOE] Categories found: {', '.join(results['categories'])}")
+            print(f"\n[YOLOE] Results saved to: {results['output_dir']}")
 
-# Crear directorio output si no existe
-os.makedirs('output', exist_ok=True)
+            # Calculate execution time
+            elapsed = time.time() - start_time
+            total_time += elapsed
+            print(f"\n[YOLOE] Finished in {elapsed:.2f} seconds.")
 
-# Guardar las etiquetas únicas en un archivo JSON
-output_data = {
-    "semantic_labels": sorted(list(unique_labels))
-}
+        if total_runs > 1:
+            average_time = total_time / total_runs
+            print(f"\n[YOLOE] Total execution time for {total_runs} executions: {total_time:.2f} seconds.")
+            print(f"\n[YOLOE] Average execution time: {average_time:.2f} seconds.")
+        else:
+            average_time = None
 
-with open('output/semantic_labels.json', 'w') as f:
-    json.dump(output_data, f, indent=2)
+        print("\n[YOLOE] All images processed successfully.")
+        return total_time, average_time
 
-print(f"Detected {len(unique_labels)} unique semantic labels: {sorted(list(unique_labels))}")
+
+def main(input_image_names: Union[str, List[str]]):
+    if not input_image_names:
+        raise ValueError("\n[YOLOE] No input image names provided. Please provide a list of image names.")
+
+    yoloe = YOLOE()
+    yoloe.run(input_image_names)
+
+
+if __name__ == "__main__":
+    # ArgumentParser to handle command line arguments
+    parser = argparse.ArgumentParser(description="Run the YOLOE pipeline on specified images.")
+    
+    # Add an argument for input images
+    parser.add_argument(
+        "-img",
+        "--input_images",
+        nargs='*', # Zero or more arguments
+        default=['desk.jpg'], # Default image if none are provided
+        help="One or more input image names (e.g., image1.png image2.jpg). Defaults to ['desk.jpg'] if not specified. Images must be located in the 'input_images' directory.",
+        metavar="IMAGE_NAME"
+    )
+
+    # Parse the arguments
+    args = parser.parse_args()
+
+    # Call the main function with the parsed arguments
+    main(input_image_names=args.input_images)
