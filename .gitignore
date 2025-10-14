@@ -1,0 +1,14 @@
+venv/
+.vscode/
+
+__pycache__/
+*.pyc
+log/
+
+*.pt
+ram_tag_list.txt
+
+output/
+*.jpg
+*.png
+*.jpeg
