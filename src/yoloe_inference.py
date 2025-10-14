@@ -203,7 +203,9 @@ class YOLOEInference:
             "num_detections": len(bboxes_data),
             "categories": sorted(list(categories)),
             "categories_file": categories_file,
-            "bboxes_file": bboxes_file
+            "bboxes_file": bboxes_file,
+            "bboxes_data": bboxes_data,  # For ROS2 usage
+            "masks_list": masks_list  # For ROS2 usage
         }
     
     def _save_mask_highlighted_images(self, image: np.ndarray, masks_list: List[Dict], 
