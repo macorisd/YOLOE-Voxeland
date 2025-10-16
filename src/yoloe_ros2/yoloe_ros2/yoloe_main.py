@@ -3,19 +3,21 @@ import time
 import argparse
 import os
 import cv2
-from yoloe_inference import YOLOEInference
+from yoloe_ros2.yoloe_inference import YOLOEInference
 
 
 class YOLOE:
-    def __init__(self, input_images_dir: str = 'input_images'):
+    def __init__(self, input_images_dir: str = 'input_images', save_output_files: bool = True):
         """
         Initialize YOLOE pipeline.
         
         Args:
             input_images_dir: Directory where input images are located
+            save_output_files: Whether to save output files to disk
         """
         self.input_images_dir = input_images_dir
-        self.yoloe_inference = YOLOEInference()
+        self.save_output_files = save_output_files
+        self.yoloe_inference = YOLOEInference(save_output_files=save_output_files)
 
     def run(self, input_image_names: Union[str, List[str]]) -> Tuple[float, Optional[float]]:
         """
@@ -93,7 +95,7 @@ if __name__ == "__main__":
         "-img",
         "--input_images",
         nargs='*', # Zero or more arguments
-        default=['desk.jpg'], # Default image if none are provided
+        default=['piano.jpg'], # Default image if none are provided
         help="One or more input image names (e.g., image1.png image2.jpg). Defaults to ['desk.jpg'] if not specified. Images must be located in the 'input_images' directory.",
         metavar="IMAGE_NAME"
     )

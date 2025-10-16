@@ -10,7 +10,7 @@ from segmentation_msgs.srv import SegmentImage
 from segmentation_msgs.msg import SemanticInstance2D
 from vision_msgs.msg import Detection2D, BoundingBox2D, ObjectHypothesisWithPose
 
-from yoloe_ros2_main import YOLOERos2
+from yoloe_ros2.yoloe_ros2_main import YOLOERos2
 
 
 class YOLOERos2Node(rclpy.node.Node):

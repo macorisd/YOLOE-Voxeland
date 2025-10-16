@@ -1,5 +1,4 @@
 from ultralytics import YOLOE
-from ultralytics.models.yolo.yoloe.val_pe_free import YOLOEPEFreeDetectValidator
 import json
 import os
 import numpy as np
@@ -17,7 +16,8 @@ class YOLOEInference:
                  model_weights: str = "yoloe-v8l-seg.pt",
                  fused_weights: str = "yoloe-v8l-seg-pf.pt",
                  vocab_file: str = "ram_tag_list.txt",
-                 output_base_dir: str = "output"):
+                 output_base_dir: str = "output",
+                 save_output_files: bool = True):
         """
         Initialize YOLOE inference model.
         
@@ -27,8 +27,10 @@ class YOLOEInference:
             fused_weights: Path to fused model weights
             vocab_file: Path to vocabulary file with class names
             output_base_dir: Base directory for outputs
+            save_output_files: Whether to save output files to disk
         """
         self.output_base_dir = output_base_dir
+        self.save_output_files = save_output_files
         
         # Load unfused model to get vocabulary
         print("Loading unfused model...")
@@ -105,10 +107,11 @@ class YOLOEInference:
         # Create unique timestamp with seconds and microseconds
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S-%f")[:-3]  # Remove last 3 digits of microseconds
         
-        # Create output folder with just the timestamp
+        # Create output folder with just the timestamp (only if saving is enabled)
         output_dir = os.path.join(self.output_base_dir, f"yoloe_{timestamp}")
         
-        os.makedirs(output_dir, exist_ok=True)
+        if self.save_output_files:
+            os.makedirs(output_dir, exist_ok=True)
         
         print(f"\nRunning inference on image with shape {image.shape}...")
         
@@ -181,21 +184,28 @@ class YOLOEInference:
                             "orig_shape": orig_shape
                         })
         
-        # Save categories
-        categories_file = os.path.join(output_dir, "categories.json")
-        with open(categories_file, 'w') as f:
-            json.dump(sorted(list(categories)), f, indent=2)
-        print(f"Saved categories to: {categories_file}")
+        # Save files only if enabled
+        categories_file = None
+        bboxes_file = None
         
-        # Save bounding boxes
-        bboxes_file = os.path.join(output_dir, "boundingboxes.json")
-        with open(bboxes_file, 'w') as f:
-            json.dump(bboxes_data, f, indent=2)
-        print(f"Saved bounding boxes to: {bboxes_file}")
-        
-        # Save highlighted mask images
-        if masks_list:
-            self._save_mask_highlighted_images(image, masks_list, output_dir)
+        if self.save_output_files:
+            # Save categories
+            categories_file = os.path.join(output_dir, "categories.json")
+            with open(categories_file, 'w') as f:
+                json.dump(sorted(list(categories)), f, indent=2)
+            print(f"Saved categories to: {categories_file}")
+            
+            # Save bounding boxes
+            bboxes_file = os.path.join(output_dir, "boundingboxes.json")
+            with open(bboxes_file, 'w') as f:
+                json.dump(bboxes_data, f, indent=2)
+            print(f"Saved bounding boxes to: {bboxes_file}")
+            
+            # Save highlighted mask images
+            if masks_list:
+                self._save_mask_highlighted_images(image, masks_list, output_dir)
+        else:
+            print(f"Output file saving is disabled (save_output_files=False)")
         
         return {
             "timestamp": timestamp,
