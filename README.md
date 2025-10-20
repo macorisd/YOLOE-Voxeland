@@ -29,9 +29,7 @@ wget https://docs-assets.developer.apple.com/ml-research/datasets/mobileclip/mob
 wget https://raw.githubusercontent.com/THU-MIG/yoloe/main/tools/ram_tag_list.txt
 ```
 
-## Usage
-
-### Standalone (Without ROS2)
+## Usage (Without ROS2)
 
 **Run inference on images:**
 ```bash
@@ -43,44 +41,43 @@ python yoloe_main.py -img image1.jpg image2.png
 `yoloe_main.py` uses `yoloe_inference.py` to run inference. All input images must be stored in the `src/yoloe_ros2/yoloe_ros2/input_images` directory.
 
 
-### With ROS2
+## Usage with [Voxeland](https://github.com/MAPIRlab/Voxeland)
 
-**Build the package:**
+### 1. Build the Workspace
+
+Clean previous build artifacts and execute `colcon build` to compile the workspace. Please adapt the paths if necessary:
+
 ```bash
 cd ~/ros2_ws
-colcon build --packages-select yoloe_ros2 --symlink-install --cmake-clean-cache
+rm -rf build/ install/ log/
+colcon build --symlink-install --cmake-clean-cache
 ```
 
-**Run the YOLOE node:**
+### 2. Launch the Detectron2 ROS 2 Node
+
+Please adapt the paths if necessary:
+
 ```bash
-cd ~/ros2_ws/src/YOLOE-Voxeland/src/yoloe_ros2/yoloe_ros2
-source ~/ros2_ws/src/YOLOE-Voxeland/venv/bin/activate
-export PYTHONPATH=$PYTHONPATH:~/ros2_ws/src/YOLOE-Voxeland/venv/lib/python3.10/site-packages
-source ~/ros2_ws/install/setup.bash
+cd ~/ros2_ws
+source install/setup.bash
 ros2 run yoloe_ros2 yoloe_node
 ```
 
-## Integration with Voxeland (for 3D semantic maps)
+### 3. Run Voxeland and Play a ScanNet ROS Bag
 
-### Launch Voxeland with YOLOE
+Create and execute a bash script that contains the following commands. Please adapt the paths if necessary:
 
-**Terminal 1 - Voxeland Robot Perception with YOLOE:**
 ```bash
 cd ~/ros2_ws
-source ~/.bashrc
-source ~/ros2_ws/venvs/voxenv/bin/activate
-ros2 launch voxeland_robot_perception semantic_mapping.launch.py object_detector:=yoloe
-```
 
-**Terminal 2 - Voxeland Server:**
-```bash
-ros2 launch voxeland voxeland_server.launch.xml
-```
+# Init voxeland_robot_perception with YOLOE detector
+gnome-terminal -- bash -c "source ~/.bashrc; source /home/ubuntu/ros2_ws/venvs/voxenv/bin/activate; ros2 launch voxeland_robot_perception semantic_mapping.launch.py object_detector:=yoloe; exec bash"
 
-**Terminal 3 - Play ROS2 Bag:**
-```bash
-cd ~/ros2_ws/bag/ScanNet/to_ros/ROS2_bags/scene0000_01/
-ros2 bag play scene0000_01.db3
+# Init voxeland server
+gnome-terminal -- bash -c "ros2 launch voxeland voxeland_server.launch.xml; exec bash"
+
+# Open bag folder and play ros2 bag
+gnome-terminal -- bash -c "cd /home/ubuntu/ros2_ws/bag/ScanNet/to_ros/ROS2_bags/scene0000_01/; ros2 bag play scene0000_01.db3; exec bash"
 ```
 
 ### Service Interface
@@ -94,7 +91,7 @@ ros2 bag play scene0000_01.db3
 **Response:**
 - `segmentation_msgs/SemanticInstance2D[] instances` - Detected objects with masks and bounding boxes
 
-**Visualization Topic:** `/yoloe/segmentedImage` (if enabled)
+**Visualization Topic:** `/segmentedImage` (if enabled)
 
 ## Configuration
 
